@@ -9,9 +9,9 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #define MAXDATASIZE 100
-#define SERVPORT 1234
 #define MAXLINE 1024
 int main(int argc, char *argv[])
 {
@@ -22,9 +22,9 @@ int main(int argc, char *argv[])
     char buf[MAXDATASIZE];
     struct hostent *host;
     struct sockaddr_in serv_addr;
-    if (argc < 2)
+    if (argc != 3)
     {
-        fprintf(stderr, "Please enter the server's hostname\n");
+        fprintf(stderr, "Please enter the server's hostname port\n");
         exit(1);
     }
 
@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
     }
 
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(SERVPORT);
+    serv_addr.sin_port = htons(atoi(argv[2]));
     serv_addr.sin_addr = *((struct in_addr *)host->h_addr);
     bzero(&(serv_addr.sin_zero), 8);
 

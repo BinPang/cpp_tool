@@ -1,7 +1,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
-#include <error.h>
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
@@ -9,10 +8,9 @@
 #include <sys/wait.h>
 #include <limits.h>
 #include <poll.h>
-#include <sys/stropts.h>
 #include <signal.h>
 #define MAXLINE 5
-#define OPEN_MAX 1024
+#define MAXCLINE 1024
 #define SA struct sockaddr
 
 int main()
@@ -21,8 +19,9 @@ int main()
     int nready;
     socklen_t clilen;
     ssize_t n;
+    int yes = 1;
     char buf[MAXLINE];
-    struct pollfd client[OPEN_MAX];
+    struct pollfd client[MAXCLINE];
     struct sockaddr_in servaddr, cliaddr;
     //创建监听套接字
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -30,12 +29,17 @@ int main()
         printf("socket() error!");
         exit(0);
     }
+    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1)
+    {
+        perror("setsockopt error \n");
+        exit(1);
+    }
     //先要对协议地址进行清零
     bzero(&servaddr, sizeof(servaddr));
     //设置为 IPv4 or IPv6
     servaddr.sin_family = AF_INET;
     //绑定本地端口号
-    servaddr.sin_port = htons(9805);
+    servaddr.sin_port = htons(12345);
     //任何一个 IP 地址，让内核自行选择
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     //绑定套接口到本地协议地址
@@ -52,7 +56,7 @@ int main()
     }
     client[0].fd = listenfd;
     client[0].events = POLLRDNORM; //关心监听套机字的读事件
-    for (i = 1; i < OPEN_MAX; ++i)
+    for (i = 1; i < MAXCLINE; ++i)
     {
         client[i].fd = -1;
     }
@@ -60,6 +64,7 @@ int main()
     for (;;)
     {
         nready = poll(client, maxi + 1, -1);
+        printf("%d,%d:", nready, client[0].revents);
         if (client[0].revents & POLLRDNORM)
         {
             clilen = sizeof(cliaddr);
@@ -69,13 +74,13 @@ int main()
             {
                 continue;
             }
-            for (i = 1; i < OPEN_MAX; ++i)
+            for (i = 1; i < MAXCLINE; ++i)
             {
                 if (client[i].fd < 0)
                     client[i].fd = connfd;
                 break;
             }
-            if (i == OPEN_MAX)
+            if (i == MAXCLINE)
             {
                 printf("too many clients");
                 exit(0);
@@ -88,7 +93,7 @@ int main()
             if (--nready <= 0)
                 continue;
         }
-        for (i = 1; i < OPEN_MAX; ++i)
+        for (i = 1; i < MAXCLINE; ++i)
         {
             if ((sockfd = client[i].fd) < 0)
             {
@@ -105,7 +110,8 @@ int main()
                     }
                     else
                     {
-                        printf("read error!\n");
+                        //printf("read error!\n");
+                        printf("client[%d] send:%s\n", i, buf);
                     }
                 }
                 else if (n == 0)
