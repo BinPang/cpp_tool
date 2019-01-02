@@ -16,6 +16,9 @@ void* threadFunc(void* arg) {
 	getchar();
 }
 
+/**
+ * gcc pthread.c -o pthread -lpthread
+ */
 int main() {
 	pthread_t t1;
 	void* s;

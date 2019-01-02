@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 
     if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(struct sockaddr)) == -1)
     {
-        perror("connect \n");
+        printf("connect err,code:%d", errno);
         exit(1);
     }
     while (fgets(send, 1024, stdin) != NULL)

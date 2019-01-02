@@ -3,6 +3,7 @@
         "stdio.h": "c",
         "error.h": "c",
         "errno.h": "c",
-        "poll.h": "c"
+        "poll.h": "c",
+        "functional": "c"
     }
 }

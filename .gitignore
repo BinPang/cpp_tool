@@ -2,3 +2,4 @@
 *
 #unignore file with extension
 !*.*
+.vscode
