@@ -9,19 +9,35 @@
 #include <limits.h>
 #include <poll.h>
 #include <signal.h>
-#define MAXLINE 5
-#define MAXCLINE 1024
+#include <arpa/inet.h>
+
 #define SA struct sockaddr
+#define MYPORT 12345 //连接时使用的端口
+#define MAXCLINE 5   //连接队列中的个数
+#define BUF_SIZE 200
+
+struct pollfd client[MAXCLINE + 1];
+int conn_amount; //当前的连接数
+
+void showclient()
+{
+    int i;
+    printf("client amount:%d\n", conn_amount);
+    for (i = 1; i <= MAXCLINE; i++)
+    {
+        printf("[%d]:%d ", i, client[i].fd);
+    }
+    printf("\n\n");
+}
 
 int main()
 {
     int listenfd, connfd, sockfd, i, maxi;
-    int nready;
+    int ret;
     socklen_t clilen;
     ssize_t n;
     int yes = 1;
-    char buf[MAXLINE];
-    struct pollfd client[MAXCLINE];
+    char buf[BUF_SIZE];
     struct sockaddr_in servaddr, cliaddr;
     //创建监听套接字
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -34,13 +50,11 @@ int main()
         perror("setsockopt error \n");
         exit(1);
     }
+
     //先要对协议地址进行清零
     bzero(&servaddr, sizeof(servaddr));
-    //设置为 IPv4 or IPv6
     servaddr.sin_family = AF_INET;
-    //绑定本地端口号
-    servaddr.sin_port = htons(12345);
-    //任何一个 IP 地址，让内核自行选择
+    servaddr.sin_port = htons(MYPORT);
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     //绑定套接口到本地协议地址
     if (bind(listenfd, (SA *)&servaddr, sizeof(servaddr)) < 0)
@@ -49,22 +63,30 @@ int main()
         exit(0);
     }
     //服务器开始监听
-    if (listen(listenfd, 5) < 0)
+    if (listen(listenfd, MAXCLINE) < 0)
     {
         printf("listen() error!");
         exit(0);
     }
     client[0].fd = listenfd;
     client[0].events = POLLRDNORM; //关心监听套机字的读事件
-    for (i = 1; i < MAXCLINE; ++i)
+    for (i = 1; i <= MAXCLINE; ++i)
     {
         client[i].fd = -1;
     }
-    maxi = 0;
     for (;;)
     {
-        nready = poll(client, maxi + 1, -1);
-        printf("%d,%d:", nready, client[0].revents);
+        ret = poll(client, MAXCLINE + 1, 30 * 1000);
+        if (ret < 0) //没有找到有效的连接 失败
+        {
+            perror("select error!\n");
+            break;
+        }
+        else if (ret == 0) // 指定的时间到，
+        {
+            printf("timeout \n");
+            continue;
+        }
         if (client[0].revents & POLLRDNORM)
         {
             clilen = sizeof(cliaddr);
@@ -74,24 +96,31 @@ int main()
             {
                 continue;
             }
-            for (i = 1; i < MAXCLINE; ++i)
+            for (i = 1; i <= MAXCLINE; i++)
             {
                 if (client[i].fd < 0)
+                {
                     client[i].fd = connfd;
-                break;
+                    break;
+                }
             }
-            if (i == MAXCLINE)
+            conn_amount++;
+            printf("new connection client[%d]%s:%d\n", i, inet_ntoa(cliaddr.sin_addr), ntohs(cliaddr.sin_port));
+            if (i > MAXCLINE)
             {
                 printf("too many clients");
                 exit(0);
             }
             client[i].events = POLLRDNORM;
-            if (i > maxi)
+            if (i > conn_amount)
             {
-                maxi = i;
+                conn_amount = i;
             }
-            if (--nready <= 0)
+            if (--ret <= 0)
+            {
+                showclient();
                 continue;
+            }
         }
         for (i = 1; i < MAXCLINE; ++i)
         {
@@ -99,9 +128,9 @@ int main()
             {
                 continue;
             }
-            if (client[i].revents & POLLRDNORM | POLLERR)
+            if (client[i].revents & POLLRDNORM)
             {
-                if ((n = read(sockfd, buf, MAXLINE)) < 0)
+                if ((n = read(sockfd, buf, BUF_SIZE)) < 0)
                 {
                     if (errno == ECONNRESET)
                     {
@@ -110,22 +139,24 @@ int main()
                     }
                     else
                     {
-                        //printf("read error!\n");
-                        printf("client[%d] send:%s\n", i, buf);
+                        printf("read error!\n");
                     }
                 }
                 else if (n == 0)
                 {
                     close(sockfd);
                     client[i].fd = -1;
+                    conn_amount--;
                 }
                 else
                 {
-                    write(sockfd, buf, n);
+                    printf("client[%d] send:%s\n", i, buf);
+                    //write(sockfd, buf, n);
                 }
-                if (--nready <= 0)
+                if (--ret <= 0)
                     break;
             }
         }
+        showclient();
     }
 }

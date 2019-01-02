@@ -16,13 +16,10 @@
 #include <arpa/inet.h>
 
 #define MYPORT 1234 //连接时使用的端口
-
 #define MAXCLINE 5 //连接队列中的个数
-
 #define BUF_SIZE 200
 
 int fd[MAXCLINE]; //连接的fd
-
 int conn_amount; //当前的连接数
 
 void showclient()
