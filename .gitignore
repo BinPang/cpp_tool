@@ -1,5 +1,7 @@
 #ignore all
-*
+#*
 #unignore file with extension
-!*.*
+#!*.*
 .vscode
+bin*
+a.out

@@ -1,0 +1,1 @@
+void is_hidden ();
