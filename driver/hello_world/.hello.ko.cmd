@@ -1,0 +1,1 @@
+cmd_/home/pangbin/cpp_tool/driver/hello_world/hello.ko := ld -r -m elf_x86_64 -z max-page-size=0x200000 -T ./scripts/module-common.lds --build-id  -o /home/pangbin/cpp_tool/driver/hello_world/hello.ko /home/pangbin/cpp_tool/driver/hello_world/hello.o /home/pangbin/cpp_tool/driver/hello_world/hello.mod.o ;  true
